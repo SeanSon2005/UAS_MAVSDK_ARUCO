@@ -1,17 +1,24 @@
 # Drone connection
 CONNECTION_STRING = "serial:///dev/ttyAMA0:57600"
 
-# TakeOff Parameters
+# Main control loop
+LOOP_HZ = 50.0
+
+# Takeoff parameters
 TAKEOFF_ALT_M = 1.0
 TAKEOFF_ALT_TOL_M = 0.15
-TAKEOFF_HOLD_TIME_S = 0.5
-TAKEOFF_TIMEOUT_S = 20.0
+TAKEOFF_TIMEOUT_S = 10.0
 
 # Alignment parameters
-ALIGNMENT_TIMEOUT_S = 15.0
+ALIGNMENT_TIMEOUT_S = 5.0
 
-# Controller parameters
-LOOP_HZ = 50.0
+# PID landing parameters
+LANDING_SWITCH_ALT_M = 0.25
+LANDING_DESCENT_SPEED_MPS = 0.30
+LANDING_DESCENT_TIMEOUT_S = 20.0
+
+# Telemetry / initialization parameters
+ALTITUDE_SAMPLE_TIMEOUT_S = 5.0
 
 # Color detection parameters (HSV, OpenCV ranges)
 FRAME_COLOR_ORDER = "RGB"
@@ -28,27 +35,6 @@ ALIGN_PID_KD = (0.0008, 0.0008)
 
 # Horizontal velocity limits (body-frame)
 MAX_SPEED_MPS = 1.0
-
-# Vertical altitude PID parameters (meters -> m/s command)
-ALT_PID_KP = (0.8,)
-ALT_PID_KI = (0.0,)
-ALT_PID_KD = (0.2,)
-ALTITUDE_SAMPLE_TIMEOUT_S = 5.0
-
-# Vertical velocity limits (body-frame: +vz is down)
-MAX_CLIMB_MPS = 2.0
-MAX_DESCENT_MPS = 2.0
-
-# Landing transition / descent parameters
-LANDING_SWITCH_ALT_M = 0.25
-LANDING_DESCENT_TARGET_M = 0.25
-LANDING_DESCENT_TIMEOUT_S = 20.0
-
-# ArUco + camera calibration parameters
-MARKER_ID = 0
-MARKER_SIZE_METERS = 0.1
-CALIB_MTX_FILE = "camera_matrix.npy"
-CALIB_DIST_FILE = "dist_coeffs.npy"
 
 # Servo hardware parameters
 PWM_CHANNEL = 2
