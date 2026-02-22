@@ -11,16 +11,10 @@ TAKEOFF_TIMEOUT_S = 20.0
 ALIGNMENT_TIMEOUT_S = 15.0
 
 # Controller parameters
-VELOCITY_KP = 1.0
 LOOP_HZ = 50.0
-MAX_SPEED_MPS = 0.4
-ENFORCE_LOCAL_POSITION = True
-
-# Camera frame channel order provided by Picamera2 stream.
-# Set to "RGB" if preview colors appear swapped and red detection fails.
-FRAME_COLOR_ORDER = "RGB"
 
 # Color detection parameters (HSV, OpenCV ranges)
+FRAME_COLOR_ORDER = "RGB"
 RED_LOWER_1 = (0, 70, 0)
 RED_UPPER_1 = (5, 255, 255)
 RED_LOWER_2 = (165, 70, 0)
@@ -31,6 +25,23 @@ RED_MIN_AREA_PX = 300
 ALIGN_PID_KP = (0.0025, 0.0025)
 ALIGN_PID_KI = (0.0, 0.0)
 ALIGN_PID_KD = (0.0008, 0.0008)
+
+# Horizontal velocity limits (body-frame)
+MAX_SPEED_MPS = 0.4
+
+# Vertical altitude PID parameters (meters -> m/s command)
+ALT_PID_KP = (0.8,)
+ALT_PID_KI = (0.0,)
+ALT_PID_KD = (0.2,)
+
+# Vertical velocity limits (body-frame: +vz is down)
+MAX_CLIMB_MPS = 0.4
+MAX_DESCENT_MPS = 0.4
+
+# Landing transition / descent parameters
+LANDING_SWITCH_ALT_M = 0.25
+LANDING_DESCENT_TARGET_M = 0.25
+LANDING_DESCENT_TIMEOUT_S = 20.0
 
 # ArUco + camera calibration parameters
 MARKER_ID = 0

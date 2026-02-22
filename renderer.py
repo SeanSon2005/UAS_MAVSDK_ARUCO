@@ -33,7 +33,20 @@ class PreviewRenderer:
         finally:
             self.window_open = False
 
-    def render(self, frame, target_visible, err_x, err_y, vx, vy, red_mask, centroid, contour, contour_area):
+    def render(
+        self,
+        frame,
+        target_visible,
+        err_x,
+        err_y,
+        vx,
+        vy,
+        red_mask,
+        centroid,
+        contour,
+        contour_area,
+        status_lines=None,
+    ):
         if not self.enabled or frame is None:
             return
 
@@ -99,6 +112,21 @@ class PreviewRenderer:
             2,
             cv2.LINE_AA,
         )
+
+        if status_lines:
+            y = 90
+            for line in status_lines:
+                cv2.putText(
+                    preview,
+                    str(line),
+                    (10, y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+                y += 22
 
         try:
             cv2.imshow(self.window_name, preview)
