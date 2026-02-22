@@ -16,6 +16,10 @@ LOOP_HZ = 50.0
 MAX_SPEED_MPS = 0.4
 ENFORCE_LOCAL_POSITION = True
 
+# Camera frame channel order provided by Picamera2 stream.
+# Set to "RGB" if preview colors appear swapped and red detection fails.
+FRAME_COLOR_ORDER = "RGB"
+
 # Color detection parameters (HSV, OpenCV ranges)
 RED_LOWER_1 = (0, 70, 0)
 RED_UPPER_1 = (5, 255, 255)

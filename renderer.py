@@ -1,11 +1,14 @@
 import cv2
 
+from constants import FRAME_COLOR_ORDER
+
 
 class PreviewRenderer:
     def __init__(self, window_name="Red Target Detection", enabled=True):
         self.enabled = enabled
         self.window_name = window_name
         self.window_open = False
+        self.frame_color_order = str(FRAME_COLOR_ORDER).upper()
 
     def init_window(self):
         if not self.enabled or self.window_open:
@@ -39,7 +42,10 @@ class PreviewRenderer:
             if not self.enabled:
                 return
 
-        preview = frame.copy()
+        if self.frame_color_order == "RGB":
+            preview = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        else:
+            preview = frame.copy()
 
         h, w = preview.shape[:2]
         center = (w // 2, h // 2)

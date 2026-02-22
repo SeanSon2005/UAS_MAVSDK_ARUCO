@@ -1,6 +1,13 @@
 import cv2
 
-from constants import RED_LOWER_1, RED_UPPER_1, RED_LOWER_2, RED_UPPER_2, RED_MIN_AREA_PX
+from constants import (
+    RED_LOWER_1,
+    RED_UPPER_1,
+    RED_LOWER_2,
+    RED_UPPER_2,
+    RED_MIN_AREA_PX,
+    FRAME_COLOR_ORDER,
+)
 
 
 class ColorDetector:
@@ -10,13 +17,15 @@ class ColorDetector:
         self.lower_red_2 = tuple(RED_LOWER_2)
         self.upper_red_2 = tuple(RED_UPPER_2)
         self.min_area_px = float(RED_MIN_AREA_PX)
+        self.frame_color_order = str(FRAME_COLOR_ORDER).upper()
 
     def detect_with_debug(self, frame):
         if frame is None:
             return None, None, None, None, None, 0.0
 
         blurred = cv2.GaussianBlur(frame, (9, 9), 0)
-        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+        hsv_code = cv2.COLOR_RGB2HSV if self.frame_color_order == "RGB" else cv2.COLOR_BGR2HSV
+        hsv = cv2.cvtColor(blurred, hsv_code)
 
         red_mask_1 = cv2.inRange(hsv, self.lower_red_1, self.upper_red_1)
         red_mask_2 = cv2.inRange(hsv, self.lower_red_2, self.upper_red_2)
