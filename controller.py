@@ -51,7 +51,7 @@ class FlightController:
         self.target_visible = False
         self.land_command_sent = False
 
-        self.relative_alt_m = None
+        self.relative_alt_m = 0.0
         self._altitude_task = None
 
         self.servo_mgr = ServoManager(
