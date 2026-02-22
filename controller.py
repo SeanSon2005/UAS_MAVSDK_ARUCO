@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 
 import asyncio
-import cv2
+import numpy as np
 
 from mavsdk import System
 from mavsdk.offboard import OffboardError, VelocityBodyYawspeed, PositionNedYaw
 
-from aruco import ArucoDetector
 from camera import Camera
+from color import ColorDetector
+from pid import PID
+from renderer import PreviewRenderer
 from servo import ServoManager
 from constants import (
     CONNECTION_STRING,
     TAKEOFF_ALT_M, TAKEOFF_ALT_TOL_M, TAKEOFF_HOLD_TIME_S, TAKEOFF_TIMEOUT_S,
     ALIGNMENT_TIMEOUT_S,
-    LOOP_HZ, VELOCITY_KP, MAX_SPEED_MPS, ENFORCE_LOCAL_POSITION,
-    MARKER_ID, MARKER_SIZE_METERS, CALIB_MTX_FILE, CALIB_DIST_FILE,
+    LOOP_HZ, MAX_SPEED_MPS, ENFORCE_LOCAL_POSITION,
+    ALIGN_PID_KP, ALIGN_PID_KI, ALIGN_PID_KD,
     PWM_CHANNEL, PWM_CHIP, STEPS_0_DEG, STEPS_180_DEG, ANGLE_LANDING,
 )
 
@@ -28,10 +30,7 @@ class FlightController:
         self.drone = System()
         self.offboard_started = False
         self.armed = False
-        self.marker_visible = False
-        self.preview_enabled = True
-        self.preview_window_name = "ArUco Detection"
-        self.preview_window_open = False
+        self.target_visible = False
 
         self.servo_mgr = ServoManager(
             PWM_CHIP=PWM_CHIP,
@@ -40,98 +39,16 @@ class FlightController:
             STEPS_180_DEG=STEPS_180_DEG,
             ANGLE_LANDING=ANGLE_LANDING,
         )
-        self.aruco_det = ArucoDetector(
-            tag_id=MARKER_ID,
-            marker_length_m=MARKER_SIZE_METERS,
-            camera_matrix_file=CALIB_MTX_FILE,
-            dist_coeffs_file=CALIB_DIST_FILE,
+        self.color_det = ColorDetector()
+        self.pid_controller = PID(
+            kp=ALIGN_PID_KP,
+            ki=ALIGN_PID_KI,
+            kd=ALIGN_PID_KD,
+            target=(0.0, 0.0),
         )
+        self.pid_controller.vmax = MAX_SPEED_MPS
         self.camera = Camera()
-
-    def _init_preview_window(self):
-        if not self.preview_enabled or self.preview_window_open:
-            return
-
-        try:
-            cv2.namedWindow(self.preview_window_name, cv2.WINDOW_NORMAL)
-            self.preview_window_open = True
-        except Exception as exc:
-            self.preview_enabled = False
-            self.preview_window_open = False
-            print(f"[VISION] Preview disabled (window init failed): {exc}")
-
-    def _close_preview_window(self):
-        if not self.preview_window_open:
-            return
-
-        try:
-            cv2.destroyWindow(self.preview_window_name)
-        except Exception as exc:
-            print(f"[VISION] Preview close warning: {exc}")
-        finally:
-            self.preview_window_open = False
-
-    def _render_preview(self, frame, err_x, err_y, vx, vy, all_corners, all_ids, rvec, tvec):
-        if not self.preview_enabled or frame is None:
-            return
-
-        if not self.preview_window_open:
-            self._init_preview_window()
-            if not self.preview_enabled:
-                return
-
-        preview = frame.copy()
-
-        if all_corners is not None and len(all_corners) > 0:
-            try:
-                cv2.aruco.drawDetectedMarkers(preview, all_corners, all_ids)
-            except Exception:
-                pass
-
-        if (
-            rvec is not None
-            and tvec is not None
-            and self.aruco_det.camera_matrix is not None
-            and self.aruco_det.dist_coeffs is not None
-        ):
-            try:
-                cv2.drawFrameAxes(
-                    preview,
-                    self.aruco_det.camera_matrix,
-                    self.aruco_det.dist_coeffs,
-                    rvec,
-                    tvec,
-                    self.aruco_det.marker_length_m * 0.5,
-                )
-            except Exception:
-                pass
-
-        status = "visible" if self.marker_visible else "not_visible"
-        ex = "None" if err_x is None else f"{err_x:.3f}"
-        ey = "None" if err_y is None else f"{err_y:.3f}"
-        overlay = f"{status} err_x={ex} err_y={ey} vx={vx:.2f} vy={vy:.2f}"
-        cv2.putText(
-            preview,
-            overlay,
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 255, 0) if self.marker_visible else (0, 0, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        try:
-            cv2.imshow(self.preview_window_name, preview)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
-                self.preview_enabled = False
-                self._close_preview_window()
-                print("[VISION] Preview closed by user")
-        except Exception as exc:
-            self.preview_enabled = False
-            self._close_preview_window()
-            print(f"[VISION] Preview disabled (render failed): {exc}")
+        self.renderer = PreviewRenderer(window_name="Red Target Detection", enabled=True)
 
     async def connect_and_wait_ready(self):
         print(f"[MAVSDK] Connecting to {CONNECTION_STRING}")
@@ -226,29 +143,44 @@ class FlightController:
             frame = await self.camera.capture_frame()
             if frame is not None:
                 (
-                    err_x,
-                    err_y,
-                    _,
-                    _,
-                    all_corners,
-                    all_ids,
-                    rvec,
-                    tvec,
-                ) = await asyncio.to_thread(self.aruco_det.detect_with_debug, frame)
+                    err_x_px,
+                    err_y_px,
+                    red_mask,
+                    centroid,
+                    contour,
+                    contour_area,
+                ) = await asyncio.to_thread(self.color_det.detect_with_debug, frame)
 
-                if err_x is not None:
-                    self.marker_visible = True
-                    vx = clamp(-err_y * VELOCITY_KP, -MAX_SPEED_MPS, MAX_SPEED_MPS)
-                    vy = clamp(err_x * VELOCITY_KP, -MAX_SPEED_MPS, MAX_SPEED_MPS)
+                if err_x_px is not None and err_y_px is not None:
+                    self.target_visible = True
+                    measurement = np.array([-err_x_px, -err_y_px], dtype=float)
+                    pid_out = self.pid_controller.update(measurement, dt)
+
+                    vx = clamp(float(-pid_out[1]), -MAX_SPEED_MPS, MAX_SPEED_MPS)
+                    vy = clamp(float(pid_out[0]), -MAX_SPEED_MPS, MAX_SPEED_MPS)
                 else:
-                    self.marker_visible = False
+                    self.target_visible = False
+                    self.pid_controller.reset(target=(0.0, 0.0))
+                    contour_area = contour_area if contour_area is not None else 0.0
 
-                self._render_preview(frame, err_x, err_y, vx, vy, all_corners, all_ids, rvec, tvec)
+                self.renderer.render(
+                    frame,
+                    self.target_visible,
+                    err_x_px,
+                    err_y_px,
+                    vx,
+                    vy,
+                    red_mask,
+                    centroid,
+                    contour,
+                    contour_area,
+                )
             else:
-                self.marker_visible = False
+                self.target_visible = False
+                self.pid_controller.reset(target=(0.0, 0.0))
 
             await self.set_velocity_body(vx, vy, 0.0, 0.0)
-            print(f"[ALIGN] visible={self.marker_visible} vx={vx:.2f} vy={vy:.2f}")
+            print(f"[ALIGN] visible={self.target_visible} vx={vx:.2f} vy={vy:.2f}")
 
             remaining = dt - (loop.time() - tick_start)
             if remaining > 0:
@@ -277,17 +209,17 @@ class FlightController:
             except Exception as exc:
                 print(f"[FLIGHT] Landing command failed: {exc}")
 
-        self._close_preview_window()
+        self.renderer.close_window()
         self.servo_mgr.close()
         await self.camera.stop_camera()
 
     async def run(self):
         await self.camera.start_camera()
-        self._init_preview_window()
+        self.renderer.init_window()
         try:
             await self.connect_and_wait_ready()
             await self.arm_and_start_offboard()
-            await self.takeoff_phase()
+            # await self.takeoff_phase()
             await self.alignment_phase()
         except KeyboardInterrupt:
             print("[SYSTEM] Keyboard interrupt")
@@ -295,4 +227,4 @@ class FlightController:
             print(f"[SYSTEM] Error: {exc}")
         finally:
             await self.land_and_shutdown()
-            self._close_preview_window()
+            self.renderer.close_window()
