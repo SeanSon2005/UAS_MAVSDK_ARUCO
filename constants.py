@@ -21,6 +21,8 @@ LANDING_DESCENT_TIMEOUT_S = 20.0
 ALTITUDE_SAMPLE_TIMEOUT_S = 5.0
 
 # Color detection parameters (HSV, OpenCV ranges)
+# Keep this aligned with real camera output on your setup. Even with BGR888
+# configuration, testing showed RGB->HSV gives correct target detection.
 FRAME_COLOR_ORDER = "RGB"
 RED_LOWER_1 = (0, 70, 0)
 RED_UPPER_1 = (5, 255, 255)

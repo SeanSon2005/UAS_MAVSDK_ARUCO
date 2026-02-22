@@ -40,3 +40,6 @@ async def run_pid_landing(controller):
         remaining = dt - (loop.time() - tick_start)
         if remaining > 0:
             await asyncio.sleep(remaining)
+
+    await controller.set_velocity_body(0.0, 0.0, 0.0, 0.0)
+    raise RuntimeError("[PID_LANDING] timeout: switch altitude not reached before descent timeout")

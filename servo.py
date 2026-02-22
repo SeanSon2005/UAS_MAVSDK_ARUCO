@@ -17,7 +17,7 @@ class ServoManager:
 
     def move(self, angle, label):
         if not self.servo: return
-        print(f"[SERVO] Moving to {label} ({angle}Â°)")
+        print(f"[SERVO] Moving to {label} ({angle} deg)")
         angle = max(0, min(180, angle))
         self.servo.change_duty_cycle(self.angle_to_steps(angle))
         

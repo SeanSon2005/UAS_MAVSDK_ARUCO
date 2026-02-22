@@ -29,3 +29,6 @@ async def run_alignment(controller):
         remaining = dt - (loop.time() - tick_start)
         if remaining > 0:
             await asyncio.sleep(remaining)
+
+    await controller.set_velocity_body(0.0, 0.0, 0.0, 0.0)
+    print("[ALIGN] timeout reached; holding position and continuing")
