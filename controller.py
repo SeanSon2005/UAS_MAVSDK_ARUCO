@@ -81,14 +81,6 @@ class FlightController:
         await self.drone.action.takeoff()
         await asyncio.sleep(6)  # Wait for takeoff to complete
 
-    async def get_altitude(self):
-        position = await self.drone.telemetry.position().__anext__()
-        return position.relative_altitude_m
-
-    @staticmethod
-    def _fmt_alt(alt_m):
-        return "None" if alt_m is None else f"{alt_m:.2f}m"
-
     async def land_and_shutdown(self):
         try:
             if self.offboard_started:
@@ -119,7 +111,7 @@ class FlightController:
             await self.arm_and_takeoff()
             await self.start_offboard()
             await run_alignment(self)
-            await run_pid_landing(self)
+            # await run_pid_landing(self)
             await run_landing(self)
         except KeyboardInterrupt:
             print("[SYSTEM] Keyboard interrupt")
