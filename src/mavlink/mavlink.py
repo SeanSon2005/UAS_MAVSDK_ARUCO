@@ -82,10 +82,9 @@ class MavLink:
                     self._last_mode = str(self.m.flightmode)
                 except Exception:
                     self._last_mode = None
-                return
+                break
             
     def start_streams(self, *, hz: float = 20.0) -> None:
-        # These are the minimum useful ones for your project
         self.request_message_interval(mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE, hz)
         self.request_message_interval(mavutil.mavlink.MAVLINK_MSG_ID_LOCAL_POSITION_NED, hz)
         self.request_message_interval(mavutil.mavlink.MAVLINK_MSG_ID_GLOBAL_POSITION_INT, 10.0)
@@ -115,7 +114,7 @@ class MavLink:
         period = 1.0 / max(1, int(hz))
         t0 = time.time()
         while time.time() - t0 < duration_s:
-            # self.set_velocity_frd(0.0, 0.0, 0.0)
+            self.set_velocity_frd(0.0, 0.0, 0.0)
             time.sleep(period)
 
         PX4_CUSTOM_MAIN_MODE_OFFBOARD = 6
@@ -279,22 +278,20 @@ class MavLink:
             0.0, 0.0
         )
 
-    def poll(self, timeout_s: float = 0.0) -> None:
+    def poll(self, timeout_s: float = 0.01) -> None:
         if not self.m:
             raise RuntimeError("Not connected. Call connect() first.")
 
-        blocking = timeout_s > 0.0
-        deadline = time.time() + timeout_s if blocking else None
+        if timeout_s <= 0.0:
+            timeout_s = 0.01
+        deadline = time.time() + timeout_s
 
         while True:
-            if blocking:
-                remaining = max(0.0, deadline - time.time())  # type: ignore[operator]
-                if remaining <= 0.0:
-                    return
-                msg = self.m.recv_match(blocking=True, timeout=remaining)
-            else:
-                msg = self.m.recv_match(blocking=False, timeout=0.0)
-
+            remaining = max(0.0, deadline - time.time())  # type: ignore[operator]
+            if remaining <= 0.0:
+                return
+            msg = self.m.recv_match(blocking=True, timeout=remaining)
+            
             if msg is None:
                 return
 

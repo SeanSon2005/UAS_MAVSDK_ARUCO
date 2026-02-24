@@ -11,12 +11,8 @@ def run(controller: "MavlinkProcessController") -> None:
     controller.phase = "LANDING"
     deadline = time.monotonic() + float(controller.cfg.landing.timeout_s)
 
-    mode_ok = controller.mav.set_mode("AUTO.LAND")
-    if not mode_ok:
-        controller.logger.warning("[LANDING] AUTO.LAND mode name unavailable; sending NAV_LAND command")
-        controller.mav.command_land()
-    else:
-        controller.logger.info("[LANDING] AUTO.LAND requested")
+    controller.logger.info("[LANDING] Landing")
+    controller.mav.command_land()
 
     while True:
         tick = time.monotonic()

@@ -58,7 +58,7 @@ class MavlinkProcessController:
         return time.monotonic() - self.latest_vision_rx_mono
 
     def poll_inputs(self) -> None:
-        self.mav.poll(timeout_s=0.0)
+        self.mav.poll(timeout_s=0.001)
         sample = self.vision_rx.poll()
         if sample is not None:
             if self.latest_vision_sample is None or sample.seq > self.latest_vision_sample.seq:
@@ -113,13 +113,18 @@ class MavlinkProcessController:
         self.mav.connect(timeout_s=15.0)
         self.logger.info("[MAVLINK] Connected. body_frame=%s", self.mav.get_body_frame_name())
 
+        self.logger.info("[MAVLINK] Starting Streams")
         self.mav.start_streams()
+        self.logger.info("[MAVLINK] Streams started.")
 
         self.logger.info("[MAVLINK] Arming")
         if not self.mav.arm(timeout_s=8.0):
             raise RuntimeError("Failed to arm")
+        self.logger.info("[MAVLINK] Armed.")
 
+        self.logger.info("[MAVLINK] Starting Offboard")
         self.mav.prime_offboard(duration_s=1.0, hz=20)
+        self.logger.info("[MAVLINK] Offboard Started.")
 
         self.offboard_active = True
 
