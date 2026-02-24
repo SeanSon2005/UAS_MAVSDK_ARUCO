@@ -1,0 +1,50 @@
+is_simulation: true
+
+drone:
+  connection_string: "serial:///dev/ttyAMA0:57600"
+  sim_connection_string: "udp:127.0.0.1:14540"
+
+takeoff:
+  alt_m: 1.0
+  vel_mps: 0.6
+  timeout_s: 15.0
+  alt_tolerance_m: 0.1
+  hold_s: 0.5
+
+landing:
+  timeout_s: 12.0
+
+alignment:
+  timeout_s: 15.0
+  pid_kp: [0.002, 0.002]
+  pid_ki: [0.0, 0.0]
+  pid_kd: [0.0008, 0.0008]
+  success_err_px: [20, 20]
+  success_hold_s: 0.8
+
+runtime:
+  loop_hz: 50.0
+  max_speed_mps: 1.0
+
+ipc:
+  host: "127.0.0.1"
+  vision_udp_port: 14601
+  control_udp_port: 14602
+  sample_ttl_s: 0.15
+  drop_to_zero_after_s: 0.30
+  send_hz_cap: 30
+  render_fps: 12
+
+vision:
+  frame_color_order: "RGB"
+  red_lower_1: [0, 70, 0]
+  red_upper_1: [5, 255, 255]
+  red_lower_2: [165, 70, 0]
+  red_upper_2: [180, 255, 255]
+  red_min_area_px: 300
+  gst_udp_port: 5600
+  gst_payload: 96
+  gst_latency_ms: 0
+
+logs:
+  dir: "logs"
