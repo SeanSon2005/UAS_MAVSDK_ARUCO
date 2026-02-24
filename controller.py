@@ -3,7 +3,7 @@
 import asyncio
 
 from mavsdk import System
-from mavsdk.offboard import OffboardError, VelocityBodyYawspeed
+from mavsdk.offboard import OffboardError, PositionNedYaw, VelocityBodyYawspeed
 
 from constants import (
     CONNECTION_STRING,
@@ -13,8 +13,7 @@ from constants import (
     STEPS_180_DEG,
 )
 from flightstate.alignment import run_alignment
-from flightstate.landing import run_landing
-from flightstate.pid_landing import run_pid_landing
+from flightstate.takeoff import run_takeoff
 from servo import ServoManager
 from vision.controller import VisionController
 
@@ -60,14 +59,25 @@ class FlightController:
                 break
 
     async def set_velocity_body(self, vx: float, vy: float, vz: float = 0.0, yaw_rate: float = 0.0):
-        await self.drone.offboard.set_velocity_body(VelocityBodyYawspeed(vx + 0.1, 
-                                                                         vy + 0.1, 
+        await self.drone.offboard.set_velocity_body(VelocityBodyYawspeed(vx, 
+                                                                         vy, 
                                                                          vz, 
                                                                          yaw_rate))
 
+    async def set_position_ned(self, north: float, east: float, down: float, yaw: float = 0.0):
+        await self.drone.offboard.set_position_ned(PositionNedYaw(north, east, down, yaw))
+
+    async def get_altitude(self):
+        async for pos in self.drone.telemetry.position():
+            return pos.relative_altitude_m
+
+    async def get_position_ned(self):
+        async for pos in self.drone.telemetry.position_velocity_ned():
+            return pos.position.north_m, pos.position.east_m, pos.position.down_m
+
     async def start_offboard(self):
         # MAVSDK requires one setpoint before starting offboard.
-        await self.set_velocity_body(0.0, 0.0, 0.0, 0.0)
+        await self.set_position_ned(0.0, 0.0, 0.0, 0.0)
         try:
             await self.drone.offboard.start()
             self.offboard_started = True
@@ -79,12 +89,7 @@ class FlightController:
         print("[FLIGHT] Arming")
         await self.drone.action.arm()
         self.armed = True
-
-        await asyncio.sleep(2)  # Short delay to ensure arming is processed
-
-        print("[FLIGHT] Taking off")
-        await self.drone.action.takeoff()
-        await asyncio.sleep(6)  # Wait for takeoff to complete
+        await asyncio.sleep(1)
 
     async def land_and_shutdown(self):
         try:
@@ -102,9 +107,6 @@ class FlightController:
             finally:
                 self.offboard_started = False
 
-        if self.armed and not self.land_command_sent:
-            await run_landing(self)
-
         self.servo_mgr.close()
         await self.vision.stop()
 
@@ -115,9 +117,8 @@ class FlightController:
             await self.connect_and_wait_ready()
             await self.arm_and_takeoff()
             await self.start_offboard()
+            await run_takeoff(self)
             await run_alignment(self)
-            # await run_pid_landing(self)
-            await run_landing(self)
         except KeyboardInterrupt:
             print("[SYSTEM] Keyboard interrupt")
         except Exception as exc:
