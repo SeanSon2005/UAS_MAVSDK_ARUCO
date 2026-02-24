@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import asyncio
-
-from picamera2 import Picamera2
-from camera import Camera
+from .camera import Camera
 
 
 class Picamera2Camera(Camera):
@@ -12,7 +9,12 @@ class Picamera2Camera(Camera):
         self._picam2 = None
         self._started = False
 
-    async def start(self) -> None:
+    def start(self) -> None:
+        try:
+            from picamera2 import Picamera2
+        except Exception as exc:
+            raise RuntimeError("picamera2 is not available") from exc
+
         self._picam2 = Picamera2()
         config = self._picam2.create_video_configuration(
             main={"size": (640, 480), "format": "BGR888"},
@@ -21,18 +23,18 @@ class Picamera2Camera(Camera):
         self._picam2.configure(config)
         self._picam2.start()
         self._started = True
-        self._logger.info("[VISION] Camera started")
+        self._logger.info("[VISION] Picamera2 started")
 
-    async def stop(self) -> None:
-        if self._picam2 and self._started:
+    def stop(self) -> None:
+        if self._picam2 is not None and self._started:
             self._picam2.stop()
             self._started = False
-            self._logger.info("[VISION] Camera stopped")
+            self._logger.info("[VISION] Picamera2 stopped")
 
-    async def capture_frame(self):
-        if not self._picam2 or not self._started:
+    def capture_frame(self):
+        if self._picam2 is None or not self._started:
             return None
         try:
-            return await asyncio.to_thread(self._picam2.capture_array, "main")
+            return self._picam2.capture_array("main")
         except Exception:
             return None

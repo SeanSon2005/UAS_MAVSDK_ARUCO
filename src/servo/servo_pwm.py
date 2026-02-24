@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from rpi_hardware_pwm import HardwarePWM
-from servo import Servo
+from .servo import Servo
 
 class HardwareServo(Servo):
     def __init__(self, logger, pwm_chip=0, pwm_channel=2, steps_0_deg=2.8, steps_180_deg=11.6, angle_landing=105):
